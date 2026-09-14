@@ -23,6 +23,16 @@
   <section id="listen-panel">
     <h2>2. Talk to Claude silently</h2>
     <button id="listen-btn" disabled>Start listening</button>
+
+    <div id="confirm-panel" hidden>
+      <p class="hint">Is this what you said?</p>
+      <input id="confirm-input" type="text" autocomplete="off">
+      <div id="confirm-buttons">
+        <button id="confirm-send-btn">Send to Claude</button>
+        <button id="confirm-cancel-btn">Try again</button>
+      </div>
+    </div>
+
     <div id="transcript"></div>
   </section>
 

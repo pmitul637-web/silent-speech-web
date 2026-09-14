@@ -66,6 +66,28 @@ button:disabled {
   color: #888;
 }
 
+#confirm-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: #262628;
+  border: 1px solid #3a3a3c;
+  border-radius: 10px;
+}
+
+#confirm-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+#confirm-buttons button {
+  width: auto;
+  flex: 1;
+}
+
+#confirm-cancel-btn {
+  background: #3a3a3c;
+}
+
 #transcript {
   margin-top: 10px;
   max-height: 220px;

@@ -33,6 +33,10 @@ const recordBtn = document.getElementById("record-btn");
 const clipCountsEl = document.getElementById("clip-counts");
 const listenBtn = document.getElementById("listen-btn");
 const transcriptEl = document.getElementById("transcript");
+const confirmPanel = document.getElementById("confirm-panel");
+const confirmInput = document.getElementById("confirm-input");
+const confirmSendBtn = document.getElementById("confirm-send-btn");
+const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 const movementSlider = document.getElementById("movement-slider");
 const distanceSlider = document.getElementById("distance-slider");
 const movementValue = document.getElementById("movement-value");
@@ -202,6 +206,11 @@ let mouthActive = false;
 let buffer = [];
 let quietStreak = 0;
 let history = [];
+// While a match is awaiting your confirmation, or a request to Claude is
+// in flight, we stop reacting to new mouth movement — otherwise repeating
+// the phrase while waiting (e.g. during a slow cold-start) piles up
+// multiple simultaneous requests and nothing seems to "go forward".
+let paused = false;
 
 listenBtn.addEventListener("click", () => {
   listening = !listening;
@@ -209,6 +218,7 @@ listenBtn.addEventListener("click", () => {
   if (!listening) {
     mouthActive = false;
     buffer = [];
+    hideConfirmPanel();
   }
 });
 
@@ -217,7 +227,7 @@ function onFrame(vector) {
     if (vector) recordFrames.push(vector);
     return;
   }
-  if (!listening || !vector) return;
+  if (!listening || paused || !vector) return;
 
   const movement = vectorNorm(vector);
   if (movement > movementThreshold) {
@@ -233,7 +243,7 @@ function onFrame(vector) {
       if (sequence.length >= MIN_CLIP_FRAMES) {
         const [command, distance] = classify(sequence);
         if (command) {
-          handleMatch(command, distance);
+          promptConfirm(command, distance);
         } else {
           logLine(`(no match) — distance ${distance.toFixed(2)}`);
         }
@@ -255,9 +265,34 @@ function speak(text) {
   speechSynthesis.speak(utter);
 }
 
-async function handleMatch(phrase, distance) {
-  logLine(`→ ${phrase} (distance ${distance.toFixed(2)})`);
-  logLine("…asking Claude…");
+function promptConfirm(phrase, distance) {
+  paused = true;
+  logLine(`→ recognized: ${phrase} (distance ${distance.toFixed(2)})`);
+  confirmInput.value = phrase;
+  confirmPanel.hidden = false;
+  confirmInput.focus();
+}
+
+function hideConfirmPanel() {
+  confirmPanel.hidden = true;
+  paused = false;
+}
+
+confirmCancelBtn.addEventListener("click", () => {
+  logLine("(cancelled — listening again)");
+  hideConfirmPanel();
+});
+
+confirmSendBtn.addEventListener("click", () => {
+  const phrase = confirmInput.value.trim();
+  if (!phrase) return;
+  confirmPanel.hidden = true;
+  askClaude(phrase);
+});
+
+async function askClaude(phrase) {
+  logLine(`You: ${phrase}`);
+  logLine("…asking Claude… (can take up to a minute if it's been idle)");
   try {
     const res = await fetch("/ask", {
       method: "POST",
@@ -272,6 +307,8 @@ async function handleMatch(phrase, distance) {
     speak(data.reply);
   } catch (err) {
     logLine(`Error talking to Claude: ${err}`);
+  } finally {
+    paused = false;
   }
 }
 
