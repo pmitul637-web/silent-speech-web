@@ -1,0 +1,112 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: -apple-system, system-ui, sans-serif;
+  background: #111;
+  color: #eee;
+  max-width: 480px;
+  margin-inline: auto;
+}
+
+h1 { font-size: 1.3rem; margin: 0 0 8px; }
+h2 { font-size: 1rem; margin: 0 0 8px; }
+
+#status {
+  font-size: 0.85rem;
+  color: #9cf;
+  margin-bottom: 8px;
+}
+
+video {
+  width: 100%;
+  border-radius: 12px;
+  background: #000;
+  transform: scaleX(-1); /* mirror, feels natural for a front camera */
+}
+
+section {
+  margin-top: 20px;
+  padding: 12px;
+  background: #1c1c1e;
+  border-radius: 12px;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: #aaa;
+  margin: 4px 0 8px;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #000;
+  color: #eee;
+  margin-bottom: 8px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #0a84ff;
+  color: white;
+  font-weight: 600;
+}
+
+button:disabled {
+  background: #444;
+  color: #888;
+}
+
+#confirm-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: #262628;
+  border: 1px solid #3a3a3c;
+  border-radius: 10px;
+}
+
+#confirm-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+#confirm-buttons button {
+  width: auto;
+  flex: 1;
+}
+
+#confirm-cancel-btn {
+  background: #3a3a3c;
+}
+
+#transcript {
+  margin-top: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+#transcript p {
+  margin: 4px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #2a2a2c;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+}
+
+input[type="range"] {
+  width: 100%;
+}

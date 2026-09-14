@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Silent Speech AI</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Silent Speech &rarr; AI</h1>
+  <div id="status">Loading face tracker&hellip;</div>
+
+  <video id="video" autoplay playsinline muted></video>
+
+  <section id="record-panel">
+    <h2>1. Train a phrase</h2>
+    <p class="hint">Type what you want to silently ask, then tap Record and mouth it (no sound). Repeat 8-10 times per phrase for reliability.</p>
+    <input id="phrase-input" type="text" placeholder="e.g. what time is it" autocomplete="off">
+    <button id="record-btn" disabled>Record a clip</button>
+    <div id="clip-counts" class="hint"></div>
+  </section>
+
+  <section id="listen-panel">
+    <h2>2. Talk to Claude silently</h2>
+    <button id="listen-btn" disabled>Start listening</button>
+
+    <div id="confirm-panel" hidden>
+      <p class="hint">Is this what you said?</p>
+      <input id="confirm-input" type="text" autocomplete="off">
+      <div id="confirm-buttons">
+        <button id="confirm-send-btn">Send to Claude</button>
+        <button id="confirm-cancel-btn">Try again</button>
+      </div>
+    </div>
+
+    <div id="transcript"></div>
+  </section>
+
+  <section id="tuning-panel">
+    <h2>Tuning (if recognition misbehaves)</h2>
+    <label>Movement sensitivity: <span id="movement-value">0.15</span>
+      <input id="movement-slider" type="range" min="0.05" max="0.40" step="0.01" value="0.15">
+    </label>
+    <label>Match strictness: <span id="distance-value">15</span>
+      <input id="distance-slider" type="range" min="5" max="30" step="1" value="15">
+    </label>
+    <p class="hint">Nothing triggering? Lower sensitivity. Triggers on everything? Raise it. Wrong matches? Lower strictness. Nothing ever matches? Raise strictness.</p>
+  </section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
