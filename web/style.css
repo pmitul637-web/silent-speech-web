@@ -1,112 +1,268 @@
-* { box-sizing: border-box; }
+:root {
+  --bg: #0f1115;
+  --panel: #1b1f27;
+  --panel-hi: #242a34;
+  --line: #2e3540;
+  --fg: #f2f4f8;
+  --muted: #a3abb9;
+  --accent: #5b8dd9;
+  --accent-hi: #7aa5e8;
+  --good: #4f9a6a;
+  --bad: #c0605f;
+  --pad: 16px;
+  --tabs-h: 68px;
+  --listen-h: 76px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  /* Bigger base size and looser spacing than default: easier to scan. */
+  font: 18px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  overscroll-behavior: none;
+}
 
 body {
-  margin: 0;
-  padding: 16px;
-  font-family: -apple-system, system-ui, sans-serif;
-  background: #111;
-  color: #eee;
-  max-width: 480px;
-  margin-inline: auto;
+  padding-bottom: calc(var(--tabs-h) + var(--listen-h) + env(safe-area-inset-bottom));
 }
 
-h1 { font-size: 1.3rem; margin: 0 0 8px; }
-h2 { font-size: 1rem; margin: 0 0 8px; }
+header { padding: calc(env(safe-area-inset-top) + 10px) var(--pad) 4px; text-align: center; }
 
-#status {
-  font-size: 0.85rem;
-  color: #9cf;
-  margin-bottom: 8px;
+h2 {
+  font-size: 14px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); margin: 28px 0 10px; font-weight: 600;
 }
 
-video {
-  width: 100%;
-  border-radius: 12px;
+.status { color: var(--muted); font-size: 14px; min-height: 22px; }
+.status.err { color: var(--bad); }
+.status.ok { color: var(--good); }
+
+/* ---------------------------------------------------------- camera */
+#video-wrap {
+  position: relative;
+  margin: 4px auto 0;
+  width: min(100% - 2 * var(--pad), 440px);
+  height: 150px;
+  border-radius: 14px;
+  overflow: hidden;
   background: #000;
-  transform: scaleX(-1); /* mirror, feels natural for a front camera */
+  border: 1px solid var(--line);
 }
+body.training #video-wrap { height: 300px; }
 
-section {
-  margin-top: 20px;
-  padding: 12px;
-  background: #1c1c1e;
-  border-radius: 12px;
-}
+#video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
 
-.hint {
-  font-size: 0.8rem;
-  color: #aaa;
-  margin: 4px 0 8px;
+#meter {
+  position: absolute; left: 10px; right: 10px; bottom: 9px;
+  height: 6px; border-radius: 3px; background: rgba(255,255,255,.18); overflow: hidden;
 }
+#meter-fill { height: 100%; width: 0%; background: var(--accent); transition: width .08s linear; }
+#meter-fill.hot { background: var(--good); }
 
-input[type="text"] {
-  width: 100%;
-  padding: 10px;
-  font-size: 1rem;
-  border-radius: 8px;
-  border: 1px solid #444;
-  background: #000;
-  color: #eee;
-  margin-bottom: 8px;
+#rec-dot {
+  position: absolute; top: 11px; right: 11px;
+  width: 14px; height: 14px; border-radius: 50%; background: var(--bad);
+  animation: pulse 1.1s ease-in-out infinite;
 }
+@keyframes pulse { 50% { opacity: .25; } }
+
+/* Live guess while mouthing, over the camera */
+#live-guess {
+  position: absolute; left: 10px; right: 10px; top: 10px;
+  padding: 6px 12px; border-radius: 10px;
+  background: rgba(15,17,21,.78); color: var(--muted);
+  font-size: 20px; font-weight: 600; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#live-guess.sure { color: #fff; background: rgba(91,141,217,.85); }
+
+/* ---------------------------------------------------------- layout */
+main { padding: 4px var(--pad) 24px; max-width: 480px; margin: 0 auto; }
+.tab[hidden] { display: none; }
+
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; }
+.row + .row { margin-top: 10px; }
 
 button {
-  width: 100%;
-  padding: 12px;
-  font-size: 1rem;
-  border-radius: 8px;
-  border: none;
-  background: #0a84ff;
-  color: white;
-  font-weight: 600;
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  min-height: 56px;              /* comfortable one-thumb target */
+  color: var(--fg);
+  background: var(--panel);
 }
+button:disabled { opacity: .45; }
+button:active { background: var(--panel-hi); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary.stop { background: var(--bad); border-color: var(--bad); }
+button.big { width: 100%; padding: 20px; font-size: 19px; margin-top: 14px; }
+button.wide { width: 100%; margin-top: 10px; }
+button.ghost { background: transparent; }
 
-button:disabled {
-  background: #444;
-  color: #888;
+input[type="text"] {
+  width: 100%; font: inherit; padding: 16px;
+  border-radius: 14px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--fg); margin-top: 10px;
 }
+input[type="range"] { width: 100%; margin: 12px 0 0; accent-color: var(--accent); height: 34px; }
+label { display: block; margin-top: 18px; font-size: 15px; color: var(--muted); }
+.num { color: var(--fg); font-variant-numeric: tabular-nums; float: right; }
+.hint { color: var(--muted); font-size: 15px; margin: 10px 0; }
 
+/* ---------------------------------------------------------- mode switch */
+#mode-switch {
+  display: flex; gap: 6px; padding: 6px; margin-top: 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+}
+#mode-switch button {
+  flex: 1; border: 0; background: transparent; min-height: 50px;
+  border-radius: 11px; color: var(--muted); font-size: 16px; padding: 12px 8px;
+}
+#mode-switch button.on { background: var(--accent); color: #fff; font-weight: 600; }
+
+/* ---------------------------------------------------------- phrases */
+#phrases { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.phrase-btn {
+  min-height: 84px;
+  font-size: 18px; font-weight: 600; line-height: 1.3;
+  text-align: center; word-break: break-word;
+  background: var(--panel-hi);
+}
+.phrase-btn:active { background: var(--accent); border-color: var(--accent); }
+#phrases .empty { grid-column: 1 / -1; color: var(--muted); font-size: 15px; }
+
+#likely h2 { margin-top: 18px; }
+.likely-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.likely-btn { border-color: var(--accent); min-height: 72px; }
+
+/* ---------------------------------------------------------- lists */
+.phrase-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 13px 15px; margin-bottom: 10px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+}
+.phrase-row .name { flex: 1 1 100%; font-weight: 600; }
+.phrase-row .count { color: var(--muted); font-size: 14px; flex: 1; }
+.phrase-row button { padding: 9px 14px; font-size: 15px; min-height: 44px; border-radius: 11px; flex: 0 0 auto; }
+
+#suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sugg {
+  min-height: 60px; font-size: 16px; text-align: center; line-height: 1.25;
+}
+.sugg.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+#completions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.completion { min-height: 48px; padding: 10px 14px; font-size: 16px; }
+
+#target-line { margin-top: 14px; }
+#target-line strong { color: var(--fg); }
+
+/* ---------------------------------------------------------- talk output */
 #confirm-panel {
-  margin-top: 12px;
-  padding: 12px;
-  background: #262628;
-  border: 1px solid #3a3a3c;
-  border-radius: 10px;
+  margin-top: 18px; padding: 16px;
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 16px;
 }
+#confirm-text { font-size: 26px; font-weight: 700; line-height: 1.25; margin: 6px 0 4px; }
+#confirm-panel .row { margin-top: 12px; }
+#confirm-panel .hint { margin: 0; }
+#confirm-alts .hint { margin-top: 14px; }
+.alt-btn { width: 100%; margin-top: 8px; font-weight: 600; text-align: left; }
 
-#confirm-buttons {
-  display: flex;
-  gap: 8px;
+.sure-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 10px;
+  border-radius: 999px; font-size: 13px; font-weight: 600;
+  background: var(--line); color: var(--fg);
 }
+.sure-tag.sure { background: var(--good); color: #fff; }
+.sure-tag.not-sure { background: var(--bad); color: #fff; }
 
-#confirm-buttons button {
-  width: auto;
-  flex: 1;
-}
-
-#confirm-cancel-btn {
-  background: #3a3a3c;
-}
-
-#transcript {
-  margin-top: 10px;
-  max-height: 220px;
-  overflow-y: auto;
-  font-size: 0.9rem;
-}
-
+#transcript { margin-top: 22px; }
 #transcript p {
-  margin: 4px 0;
-  padding-bottom: 4px;
-  border-bottom: 1px solid #2a2a2c;
+  margin: 0 0 10px; padding: 14px 16px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 14px; font-size: 18px; word-wrap: break-word;
 }
+#transcript p.me { background: var(--panel-hi); font-weight: 600; }
+#transcript p.sys { background: transparent; border: 0; color: var(--muted); font-size: 14px; padding: 2px 4px; }
 
-label {
-  display: block;
-  font-size: 0.85rem;
-  margin-bottom: 10px;
+/* ---------------------------------------------------------- fixed bars */
+#listen-bar {
+  position: fixed; left: 0; right: 0;
+  bottom: calc(var(--tabs-h) + env(safe-area-inset-bottom));
+  padding: 10px var(--pad);
+  background: rgba(15,17,21,.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
 }
+#listen-bar button { width: 100%; min-height: 56px; font-size: 18px; }
+body.training #listen-bar, body.settings #listen-bar { display: none; }
+body.training, body.settings { padding-bottom: calc(var(--tabs-h) + env(safe-area-inset-bottom)); }
 
-input[type="range"] {
-  width: 100%;
+#tabs {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: flex;
+  background: rgba(15,17,21,.96);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
 }
+#tabs button {
+  flex: 1; border: 0; border-radius: 0; background: transparent;
+  color: var(--muted); font-size: 15px; height: var(--tabs-h); min-height: 0;
+}
+#tabs button.active { color: var(--accent-hi); font-weight: 600; }
+
+/* ---------------------------------------------------------- install */
+#install-hint {
+  margin: var(--pad); padding: 16px;
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 16px;
+  font-size: 16px;
+}
+#install-hint p { margin: 0 0 10px; }
+
+/* ---------------------------------------------------------- test */
+body.testing-tab #listen-bar { display: none; }
+body.testing-tab { padding-bottom: calc(var(--tabs-h) + env(safe-area-inset-bottom)); }
+body.testing-tab #video-wrap { height: 220px; }
+
+#test-phrases { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#test-phrases .empty { grid-column: 1 / -1; color: var(--muted); font-size: 15px; }
+
+.chips { display: flex; gap: 8px; }
+.chips button { flex: 1; min-height: 48px; padding: 10px; font-size: 16px; }
+.chips button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+#test-live, #test-done {
+  margin-top: 18px; padding: 16px;
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 16px;
+}
+#test-count { font-size: 28px; font-weight: 700; line-height: 1.2; }
+#test-prompt { font-size: 18px; margin-top: 6px; min-height: 29px; }
+#test-prompt.ok { color: var(--good); }
+#test-prompt.no { color: var(--bad); }
+#test-dots { display: flex; gap: 6px; margin: 14px 0 4px; }
+#test-dots span { flex: 1; height: 12px; border-radius: 6px; background: var(--line); }
+#test-dots span.ok { background: var(--good); }
+#test-dots span.no { background: var(--bad); }
+#test-live .row { margin-top: 10px; }
+
+#test-done .score { font-size: 34px; font-weight: 700; line-height: 1.2; }
+#test-done .verdict { font-size: 20px; font-weight: 600; margin: 4px 0 8px; }
+#test-done .verdict.pass { color: var(--good); }
+#test-done .verdict.fail { color: var(--bad); }
+#test-done p { margin: 6px 0; font-size: 16px; }
+
+.badge {
+  display: inline-block; font-size: 14px; font-weight: 600;
+  padding: 3px 12px; border-radius: 999px;
+  background: var(--line); color: var(--fg);
+}
+.badge.pass { background: var(--good); color: #fff; }
+.badge.fail { background: var(--bad); color: #fff; }
+.test-row .past { flex: 1 1 100%; color: var(--muted); font-size: 14px; }

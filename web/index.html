@@ -2,50 +2,166 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Silent Speech AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Silent Speech</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Silent Speech">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Silent Speech &rarr; AI</h1>
-  <div id="status">Loading face tracker&hellip;</div>
 
+<div id="install-hint" hidden>
+  <p><strong>Add this to your Home Screen.</strong></p>
+  <p>Tap Share, then <em>Add to Home Screen</em>. It opens full screen, and your
+     phrases stop getting wiped after a week.</p>
+  <button id="install-dismiss" class="ghost">Not now</button>
+</div>
+
+<header>
+  <div id="status" class="status">Starting&hellip;</div>
+</header>
+
+<div id="video-wrap">
   <video id="video" autoplay playsinline muted></video>
+  <div id="meter"><div id="meter-fill"></div></div>
+  <div id="rec-dot" hidden></div>
+  <div id="live-guess" hidden aria-live="polite"></div>
+</div>
 
-  <section id="record-panel">
-    <h2>1. Train a phrase</h2>
-    <p class="hint">Type what you want to silently ask, then tap Record and mouth it (no sound). Repeat 8-10 times per phrase for reliability.</p>
-    <input id="phrase-input" type="text" placeholder="e.g. what time is it" autocomplete="off">
-    <button id="record-btn" disabled>Record a clip</button>
-    <div id="clip-counts" class="hint"></div>
-  </section>
+<main>
 
-  <section id="listen-panel">
-    <h2>2. Talk to Claude silently</h2>
-    <button id="listen-btn" disabled>Start listening</button>
+  <!-- ------------------------------------------------ TALK -->
+  <section id="tab-talk" class="tab">
+
+    <div id="mode-switch" role="group" aria-label="What happens when a phrase is chosen">
+      <button data-mode="speak" class="on">Say it out loud</button>
+      <button data-mode="ask">Ask Claude</button>
+    </div>
 
     <div id="confirm-panel" hidden>
-      <p class="hint">Is this what you said?</p>
-      <input id="confirm-input" type="text" autocomplete="off">
-      <div id="confirm-buttons">
-        <button id="confirm-send-btn">Send to Claude</button>
-        <button id="confirm-cancel-btn">Try again</button>
+      <p class="hint">Is this right? <span id="confirm-sure" class="sure-tag"></span></p>
+      <div id="confirm-text"></div>
+      <div class="row">
+        <button id="confirm-send-btn" class="primary">Yes</button>
+        <button id="confirm-cancel-btn" class="ghost">No</button>
       </div>
+      <div id="confirm-alts"></div>
     </div>
+
+    <div id="likely" hidden></div>
+    <div id="phrases"></div>
 
     <div id="transcript"></div>
   </section>
 
-  <section id="tuning-panel">
-    <h2>Tuning (if recognition misbehaves)</h2>
-    <label>Movement sensitivity: <span id="movement-value">0.15</span>
+  <!-- ------------------------------------------------ TRAIN -->
+  <section id="tab-train" class="tab" hidden>
+    <h2>What are you teaching it?</h2>
+    <div id="suggestions"></div>
+
+    <input id="phrase-input" type="text" placeholder="Type it instead"
+           autocomplete="off" autocapitalize="none" hidden>
+    <div id="completions"></div>
+    <button id="other-btn" class="ghost wide">Something else</button>
+
+    <div id="target-line" class="hint"></div>
+
+    <button id="record-btn" class="primary big" disabled>Record a clip</button>
+    <p class="hint">Eight to ten clips per phrase is where it gets reliable.</p>
+
+    <h2>Your phrases</h2>
+    <div id="clip-counts"></div>
+  </section>
+
+  <!-- ------------------------------------------------ TEST -->
+  <section id="tab-test" class="tab" hidden>
+    <h2>Which phrase are you testing?</h2>
+    <div id="test-phrases"></div>
+
+    <h2>Light right now</h2>
+    <div id="test-light" class="chips" role="group" aria-label="Light">
+      <button data-light="Bright">Bright</button>
+      <button data-light="Normal" class="on">Normal</button>
+      <button data-light="Dim">Dim</button>
+    </div>
+
+    <button id="test-start" class="primary big" disabled>Start 10 tries</button>
+
+    <div id="test-live" hidden>
+      <div id="test-count">Try 1 of 10</div>
+      <div id="test-prompt"></div>
+      <div id="test-dots"></div>
+      <div id="test-tally" class="hint"></div>
+      <div class="row">
+        <button id="test-undo" class="ghost">Undo last try</button>
+        <button id="test-stop" class="ghost">Stop</button>
+      </div>
+      <p class="hint">Went off by mistake? Tap Undo last try.</p>
+    </div>
+
+    <div id="test-done" hidden></div>
+
+    <h2>Results</h2>
+    <div id="test-summary"></div>
+    <div class="row">
+      <button id="test-export" class="ghost">Save report</button>
+    </div>
+    <p id="test-sync" class="hint"></p>
+  </section>
+
+  <!-- ------------------------------------------------ SETTINGS -->
+  <section id="tab-settings" class="tab" hidden>
+    <h2>Tuning</h2>
+    <label>Movement sensitivity <span id="movement-value" class="num">0.15</span>
       <input id="movement-slider" type="range" min="0.05" max="0.40" step="0.01" value="0.15">
     </label>
-    <label>Match strictness: <span id="distance-value">15</span>
-      <input id="distance-slider" type="range" min="5" max="30" step="1" value="15">
+    <p class="hint">Nothing triggering? Lower it. Triggers on everything? Raise it.</p>
+
+    <label>How forgiving <span id="distance-value" class="num">2.5</span>
+      <input id="distance-slider" type="range" min="1.2" max="5" step="0.1" value="2.5">
     </label>
-    <p class="hint">Nothing triggering? Lower sensitivity. Triggers on everything? Raise it. Wrong matches? Lower strictness. Nothing ever matches? Raise strictness.</p>
+    <p class="hint">Catches random mouth movements? Lower it. Says "didn't catch that"
+       too often? Raise it.</p>
+
+    <h2>Backup</h2>
+    <p class="hint">Your phrases live on this phone only. Back them up before you
+       reinstall, clear Safari data, or change phone.</p>
+    <div class="row">
+      <button id="export-btn" class="ghost">Back up</button>
+      <button id="import-btn" class="ghost">Restore</button>
+    </div>
+    <input id="import-file" type="file" accept="application/json" hidden>
+
+    <div class="row">
+      <button id="starter-btn" class="ghost">Load the phrases from your laptop</button>
+    </div>
+
+    <h2>Connection</h2>
+    <div id="conn" class="hint">Checking&hellip;</div>
+    <p class="hint">Saying phrases out loud works with no connection at all.
+       Only Claude's replies need a connection.</p>
   </section>
+
+</main>
+
+<div id="listen-bar">
+  <button id="listen-btn" class="primary" disabled>Start listening</button>
+</div>
+
+<nav id="tabs">
+  <button data-tab="talk" class="active">Talk</button>
+  <button data-tab="train">Train</button>
+  <button data-tab="test">Test</button>
+  <button data-tab="settings">Settings</button>
+</nav>
 
 <script type="module" src="app.js"></script>
 </body>
