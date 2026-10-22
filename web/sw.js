@@ -1,7 +1,7 @@
 // Service worker: makes the app open instantly and keep working with no
 // connection. Only Claude's replies need the network.
 
-const VERSION = "silent-speech-v5";
+const VERSION = "silent-speech-v6";
 const SHELL = [
   "/",
   "/index.html",

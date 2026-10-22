@@ -154,17 +154,72 @@ distanceSlider.addEventListener("input", () => {
 loadSettings();
 
 // ---- Storage for recorded reference clips (stays on this device) ----
-function loadClips() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-  } catch {
-    return {};
+// iPhones give a web app about 5 MB here. Clips used to be stored as plain
+// JSON numbers, which filled that after ~100 clips. Each value is a 0..1
+// mouth-shape score, so it is now packed as one byte (1/255 steps; tested
+// with no change in accuracy), about 5-12x smaller. Old-format clips are
+// still read, and are repacked on the next save.
+function packClip(frames) {
+  if (typeof frames === "string") return frames;
+  const dim = frames.length ? frames[0].length : 0;
+  const bytes = new Uint8Array(frames.length * dim);
+  let i = 0;
+  for (const f of frames) {
+    for (const v of f) bytes[i++] = Math.round(Math.min(1, Math.max(0, v)) * 255);
   }
+  let s = "";
+  for (let j = 0; j < bytes.length; j += 0x8000) {
+    s += String.fromCharCode.apply(null, bytes.subarray(j, j + 0x8000));
+  }
+  return dim + ":" + btoa(s);
+}
+function unpackClip(c) {
+  if (Array.isArray(c)) return c;
+  if (typeof c !== "string") return [];
+  const k = c.indexOf(":");
+  const dim = parseInt(c.slice(0, k), 10);
+  if (!(dim > 0)) return [];
+  const s = atob(c.slice(k + 1));
+  const frames = [];
+  for (let i = 0; i + dim <= s.length; i += dim) {
+    const f = new Array(dim);
+    for (let d = 0; d < dim; d++) f[d] = s.charCodeAt(i + d) / 255;
+    frames.push(f);
+  }
+  return frames;
+}
+
+// Unpacking is not free, so each store is decoded once and kept in memory.
+// Callers get their own copy of the lists, so an edit that then fails to
+// save never leaves memory and storage disagreeing.
+const storeCache = {};
+function readStore(key) {
+  if (!storeCache[key]) {
+    let raw = {};
+    try { raw = JSON.parse(localStorage.getItem(key) || "{}"); } catch { raw = {}; }
+    const out = {};
+    for (const [name, list] of Object.entries(raw)) {
+      if (Array.isArray(list)) out[name] = list.map(unpackClip).filter((c) => c.length);
+    }
+    storeCache[key] = out;
+  }
+  return Object.fromEntries(Object.entries(storeCache[key]).map(([k, v]) => [k, v.slice()]));
+}
+function writeStore(key, data) {
+  const packed = {};
+  for (const [name, list] of Object.entries(data)) packed[name] = list.map(packClip);
+  localStorage.setItem(key, JSON.stringify(packed));   // throws if full
+  storeCache[key] = Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, v.map(unpackClip)]));
+}
+
+function loadClips() {
+  return readStore(STORAGE_KEY);
 }
 function saveClips(clips) {
   invalidateIndex();
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(clips));
+    writeStore(STORAGE_KEY, clips);
     return true;
   } catch (err) {
     alert("Could not save - this phone's storage for the app is full. "
@@ -173,24 +228,37 @@ function saveClips(clips) {
   }
 }
 
+// Repack anything still in the old, larger format. Writing the smaller
+// version over the old one frees space; if it fails, the old copy stays.
+function shrinkStorage() {
+  for (const key of [STORAGE_KEY, LEARNED_KEY]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw || !raw.includes("[[")) continue;   // already packed
+      writeStore(key, readStore(key));
+    } catch { /* leave as is */ }
+  }
+}
+shrinkStorage();
+
 // ---- Clips learned from use ------------------------------------------
 // Every time you confirm a guess (or pick the right one from the list),
 // that movement is kept as an extra example. The app keeps getting better
 // without you going back to Train. Kept apart from trained clips so the
 // oldest can be dropped and "Undo last" still means your last recording.
 function loadLearned() {
-  try { return JSON.parse(localStorage.getItem(LEARNED_KEY) || "{}"); } catch { return {}; }
+  return readStore(LEARNED_KEY);
 }
 function saveLearned(l) {
   invalidateIndex();
-  try { localStorage.setItem(LEARNED_KEY, JSON.stringify(l)); } catch { /* full: skip, not vital */ }
+  try { writeStore(LEARNED_KEY, l); } catch { /* full: skip, not vital */ }
 }
 function learnFrom(sequence, phrase) {
   if (!sequence || sequence.length < MIN_CLIP_FRAMES) return;
   if (!loadClips()[phrase]) return;
   const l = loadLearned();
   const list = l[phrase] || [];
-  list.push(sequence.map((f) => f.map((v) => Math.round(v * 1000) / 1000)));
+  list.push(sequence);
   while (list.length > LEARN_CAP) list.shift();
   l[phrase] = list;
   saveLearned(l);
@@ -415,7 +483,11 @@ renderPhraseButtons();
 // ---- Backup and restore ---------------------------------------------
 $("export-btn").addEventListener("click", () => {
   // Learned clips go in as ordinary clips, so a restore keeps them.
-  const blob = new Blob([JSON.stringify(allClips())], { type: "application/json" });
+  const plain = {};
+  for (const [name, list] of Object.entries(allClips())) {
+    plain[name] = list.map((c) => c.map((f) => f.map((v) => Math.round(v * 1000) / 1000)));
+  }
+  const blob = new Blob([JSON.stringify(plain)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `silent-speech-phrases-${new Date().toISOString().slice(0, 10)}.json`;
@@ -435,8 +507,9 @@ $("import-file").addEventListener("change", async (e) => {
     let added = 0;
     for (const [name, list] of Object.entries(incoming)) {
       if (!Array.isArray(list)) continue;
-      clips[name] = (clips[name] || []).concat(list);
-      added += list.length;
+      const good = list.map(unpackClip).filter((c) => c.length);
+      clips[name] = (clips[name] || []).concat(good);
+      added += good.length;
     }
     if (saveClips(clips)) {
       renderClipCounts();
@@ -465,8 +538,10 @@ $("starter-btn").addEventListener("click", async () => {
     let phrases = 0;
     for (const [name, list] of Object.entries(incoming)) {
       if (!Array.isArray(list)) continue;
-      const seen = new Set((clips[name] || []).map((c) => JSON.stringify(c)));
-      const fresh = list.filter((c) => !seen.has(JSON.stringify(c)));
+      // Compared packed: stored clips are rounded to 1/255, so raw numbers
+      // would never match and the same clips would be added again.
+      const seen = new Set((clips[name] || []).map(packClip));
+      const fresh = list.filter((c) => Array.isArray(c) && !seen.has(packClip(c)));
       if (!fresh.length) continue;
       clips[name] = (clips[name] || []).concat(fresh);
       added += fresh.length;
